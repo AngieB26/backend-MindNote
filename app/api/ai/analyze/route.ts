@@ -1,7 +1,4 @@
-import { NextResponse } from "next/server";
-
-// Forzar Node.js runtime
-export const runtime = "nodejs";
+import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
   try {
@@ -9,6 +6,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, data: body });
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
 }
