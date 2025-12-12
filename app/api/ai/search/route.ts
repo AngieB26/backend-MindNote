@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { z } from 'zod';
 import { prisma } from '../../../lib/prisma';
 
-const CORS_ORIGINS = ['http://localhost:8080', 'http://localhost:5173', 'http://localhost:3000'];
+const CORS_ORIGINS = ['http://localhost:8080', 'http://localhost:5173', 'http://localhost:3000', 'https://frontend-lovable.vercel.app'];
 
 function getCORSOrigin(origin?: string): string {
   return origin && CORS_ORIGINS.includes(origin) ? origin : 'http://localhost:8080';
