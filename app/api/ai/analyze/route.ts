@@ -35,14 +35,13 @@ export async function POST(req: Request) {
 
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
     
-    const prompt = `Resume el siguiente texto de manera concisa y clara, manteniendo los puntos más importantes:
+    const prompt = `Actúa como un asistente de resumen de textos. Resume el siguiente contenido de manera breve y concisa, capturando solo los puntos clave más importantes. No agregues introducciones ni explicaciones, solo proporciona el resumen directo.
 
-${textToAnalyze}
-
-Resumen:`;
+Texto original:
+${textToAnalyze}`;
 
     const result = await model.generateContent(prompt);
-    const summary = result.response.text();
+    const summary = result.response.text().trim();
 
     return NextResponse.json(
       { ok: true, data: { summary, original: textToAnalyze } },
