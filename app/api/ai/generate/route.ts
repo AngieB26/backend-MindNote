@@ -1,22 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { z } from 'zod';
 
-function getOpenAI() {
-  const apiKey = process.env.OPENAI_API_KEY;
+function getGemini() {
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error('Missing OPENAI_API_KEY');
+    throw new Error('Missing GEMINI_API_KEY');
   }
-  return new OpenAI({ apiKey });
+  const genAI = new GoogleGenerativeAI(apiKey);
+  return genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 }
 
-const CORS_ORIGIN = 'http://localhost:8080';
+const CORS_ORIGINS = ['http://localhost:8080', 'http://localhost:5173', 'http://localhost:3000'];
 
-function withCors(json: Record<string, unknown>, init?: ResponseInit) {
+function getCORSOrigin(origin?: string): string {
+  return origin && CORS_ORIGINS.includes(origin) ? origin : 'http://localhost:8080';
+}
+
+function withCors(json: Record<string, unknown>, init?: ResponseInit, origin?: string) {
+  const corsOrigin = getCORSOrigin(origin);
   return NextResponse.json(json, {
     ...(init ?? {}),
     headers: {
-      'Access-Control-Allow-Origin': CORS_ORIGIN,
+      'Access-Control-Allow-Origin': corsOrigin,
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
       ...(init?.headers ?? {}),
@@ -24,11 +30,12 @@ function withCors(json: Record<string, unknown>, init?: ResponseInit) {
   });
 }
 
-export async function OPTIONS() {
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get('origin') || 'http://localhost:8080';
   return new NextResponse(null, {
     status: 204,
     headers: {
-      'Access-Control-Allow-Origin': CORS_ORIGIN,
+      'Access-Control-Allow-Origin': getCORSOrigin(origin),
       'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
       'Access-Control-Max-Age': '86400',
@@ -36,14 +43,15 @@ export async function OPTIONS() {
   });
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const origin = request.headers.get('origin') || 'http://localhost:8080';
   return new NextResponse(
     JSON.stringify({ ok: true, route: 'generate', method: 'GET' }),
     {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': CORS_ORIGIN,
+        'Access-Control-Allow-Origin': getCORSOrigin(origin),
       },
     }
   );
@@ -56,6 +64,7 @@ const generateSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  const origin = request.headers.get('origin') || 'http://localhost:8080';
   try {
     const body = await request.json();
     const { prompt, type, category } = generateSchema.parse(body);
@@ -81,26 +90,17 @@ export async function POST(request: NextRequest) {
         break;
     }
 
-    const completion = await getOpenAI().chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.9,
-      max_tokens: 1000,
-    });
+    const completion = await getGemini().generateContent(`${systemPrompt}\n\n${userPrompt}`);
+    const generatedContent = completion.response.text();
 
-    const generatedContent = completion.choices[0].message.content;
-
-    return withCors({ success: true, content: generatedContent, type, usage: completion.usage });
+    return withCors({ success: true, content: generatedContent, type }, undefined, origin);
   } catch (error) {
     console.error('Error al generar contenido:', error);
 
     if (error instanceof z.ZodError) {
-      return withCors({ success: false, error: 'Datos de entrada inválidos', details: error.issues }, { status: 400 });
+      return withCors({ success: false, error: 'Datos de entrada inválidos', details: error.issues }, { status: 400 }, origin);
     }
 
-    return withCors({ success: false, error: 'Error al generar contenido' }, { status: 500 });
+    return withCors({ success: false, error: 'Error al generar contenido' }, { status: 500 }, origin);
   }
 }

@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { z } from 'zod';
 import { sanitizeInput, checkRateLimit, getRateLimitIdentifier } from '../../../lib/security';
 import { withSecureCors } from '../../../lib/middleware';
 
-function getOpenAI() {
-  const apiKey = process.env.OPENAI_API_KEY;
+function getGemini() {
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error('Missing OPENAI_API_KEY');
+    throw new Error('Missing GEMINI_API_KEY');
   }
-  return new OpenAI({ apiKey });
+  const genAI = new GoogleGenerativeAI(apiKey);
+  return genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 }
 
 const analyzeSchema = z.object({
@@ -17,13 +18,18 @@ const analyzeSchema = z.object({
   type: z.enum(['summary', 'sentiment', 'category', 'keywords', 'improve']),
 });
 
-const CORS_ORIGIN = 'http://localhost:8080';
+const CORS_ORIGINS = ['http://localhost:8080', 'http://localhost:5173', 'http://localhost:3000'];
 
-export async function OPTIONS() {
+function getCORSOrigin(origin?: string): string {
+  return origin && CORS_ORIGINS.includes(origin) ? origin : 'http://localhost:8080';
+}
+
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get('origin') || 'http://localhost:8080';
   return new NextResponse(null, {
     status: 204,
     headers: {
-      'Access-Control-Allow-Origin': CORS_ORIGIN,
+      'Access-Control-Allow-Origin': getCORSOrigin(origin),
       'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
       'Access-Control-Max-Age': '86400',
@@ -31,20 +37,22 @@ export async function OPTIONS() {
   });
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const origin = request.headers.get('origin') || 'http://localhost:8080';
   return new NextResponse(
     JSON.stringify({ ok: true, route: 'analyze', method: 'GET' }),
     {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': CORS_ORIGIN,
+        'Access-Control-Allow-Origin': getCORSOrigin(origin),
       },
     }
   );
 }
 
 export async function POST(request: NextRequest) {
+  const origin = request.headers.get('origin') || 'http://localhost:8080';
   try {
     // ============== RATE LIMITING ==============
     const identifier = getRateLimitIdentifier(request);
@@ -61,7 +69,7 @@ export async function POST(request: NextRequest) {
           retryAfter: new Date(rateLimit.resetTime).toISOString(),
         },
         { status: 429 },
-        CORS_ORIGIN
+        getCORSOrigin(origin)
       );
     }
 
@@ -93,20 +101,11 @@ export async function POST(request: NextRequest) {
         break;
     }
 
-    const completion = await getOpenAI().chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: prompt },
-      ],
-      temperature: 0.7,
-      max_tokens: 500,
-    });
-
-    const result = completion.choices[0].message.content;
+    const completion = await getGemini().generateContent(`${systemPrompt}\n\n${prompt}`);
+    const result = completion.response.text();
 
     return withSecureCors(
-      { success: true, result, type, usage: completion.usage },
+      { success: true, result, type },
       {
         headers: {
           'X-RateLimit-Limit': '20',
@@ -114,7 +113,7 @@ export async function POST(request: NextRequest) {
           'X-RateLimit-Reset': new Date(rateLimit.resetTime).toISOString(),
         },
       },
-      CORS_ORIGIN
+      getCORSOrigin(origin)
     );
   } catch (error) {
     console.error('Error en análisis de IA:', error);
@@ -123,14 +122,14 @@ export async function POST(request: NextRequest) {
       return withSecureCors(
         { success: false, error: 'Datos de entrada inválidos', details: error.issues },
         { status: 400 },
-        CORS_ORIGIN
+        getCORSOrigin(origin)
       );
     }
 
     return withSecureCors(
       { success: false, error: 'Error al procesar la solicitud de IA' },
       { status: 500 },
-      CORS_ORIGIN
+      getCORSOrigin(origin)
     );
   }
 }

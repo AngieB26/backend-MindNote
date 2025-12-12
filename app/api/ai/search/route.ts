@@ -1,15 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { z } from 'zod';
 import { prisma } from '../../../lib/prisma';
 
-const CORS_ORIGIN = 'http://localhost:8080';
+const CORS_ORIGINS = ['http://localhost:8080', 'http://localhost:5173', 'http://localhost:3000'];
 
-function withCors(json: Record<string, unknown>, init?: ResponseInit) {
+function getCORSOrigin(origin?: string): string {
+  return origin && CORS_ORIGINS.includes(origin) ? origin : 'http://localhost:8080';
+}
+
+function withCors(json: Record<string, unknown>, init?: ResponseInit, origin?: string) {
+  const corsOrigin = getCORSOrigin(origin);
   return NextResponse.json(json, {
     ...(init ?? {}),
     headers: {
-      'Access-Control-Allow-Origin': CORS_ORIGIN,
+      'Access-Control-Allow-Origin': corsOrigin,
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
       ...(init?.headers ?? {}),
@@ -17,11 +22,12 @@ function withCors(json: Record<string, unknown>, init?: ResponseInit) {
   });
 }
 
-export async function OPTIONS() {
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get('origin') || 'http://localhost:8080';
   return new NextResponse(null, {
     status: 204,
     headers: {
-      'Access-Control-Allow-Origin': CORS_ORIGIN,
+      'Access-Control-Allow-Origin': getCORSOrigin(origin),
       'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
       'Access-Control-Max-Age': '86400',
@@ -29,25 +35,27 @@ export async function OPTIONS() {
   });
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const origin = request.headers.get('origin') || 'http://localhost:8080';
   return new NextResponse(
     JSON.stringify({ ok: true, route: 'search', method: 'GET' }),
     {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': CORS_ORIGIN,
+        'Access-Control-Allow-Origin': getCORSOrigin(origin),
       },
     }
   );
 }
 
-function getOpenAI() {
-  const apiKey = process.env.OPENAI_API_KEY;
+function getGemini() {
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error('Missing OPENAI_API_KEY');
+    throw new Error('Missing GEMINI_API_KEY');
   }
-  return new OpenAI({ apiKey });
+  const genAI = new GoogleGenerativeAI(apiKey);
+  return genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 }
 
 const searchSchema = z.object({
@@ -57,6 +65,7 @@ const searchSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  const origin = request.headers.get('origin') || 'http://localhost:8080';
   try {
     const body = await request.json();
     const { query, userId, limit } = searchSchema.parse(body);
@@ -72,7 +81,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (userNotes.length === 0) {
-      return withCors({ success: true, results: [], message: 'No tienes notas guardadas aún' });
+      return withCors({ success: true, results: [], message: 'No tienes notas guardadas aún' }, undefined, origin);
     }
 
     interface NoteWithCategory {
@@ -100,20 +109,8 @@ Responde en formato JSON con esta estructura:
   ]
 }`;
 
-    const completion = await getOpenAI().chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        { 
-          role: 'system', 
-          content: 'Eres un asistente que ayuda a buscar información relevante en notas. Responde SOLO con JSON válido.' 
-        },
-        { role: 'user', content: prompt },
-      ],
-      temperature: 0.3,
-      max_tokens: 500,
-    });
-
-    const aiResponse = JSON.parse(completion.choices[0].message.content || '{"results":[]}');
+    const completion = await getGemini().generateContent(`Eres un asistente que ayuda a buscar información relevante en notas. Responde SOLO con JSON válido.\n\n${prompt}`);
+    const aiResponse = JSON.parse(completion.response.text() || '{"results":[]}');
     
     interface AIResult {
       index: number;
@@ -125,14 +122,14 @@ Responde en formato JSON con esta estructura:
       relevance: result.relevance,
     }));
 
-    return withCors({ success: true, results, query, usage: completion.usage });
+    return withCors({ success: true, results, query }, undefined, origin);
   } catch (error) {
     console.error('Error en búsqueda con IA:', error);
 
     if (error instanceof z.ZodError) {
-      return withCors({ success: false, error: 'Datos de entrada inválidos', details: error.issues }, { status: 400 });
+      return withCors({ success: false, error: 'Datos de entrada inválidos', details: error.issues }, { status: 400 }, origin);
     }
 
-    return withCors({ success: false, error: 'Error al realizar la búsqueda' }, { status: 500 });
+    return withCors({ success: false, error: 'Error al realizar la búsqueda' }, { status: 500 }, origin);
   }
 }
