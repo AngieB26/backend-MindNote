@@ -1,8 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { z } from 'zod';
 import { sanitizeInput, checkRateLimit, getRateLimitIdentifier } from '../../../lib/security';
-import { withSecureCors } from '../../../lib/middleware';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': 'https://frontend-lovable.vercel.app',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
 
 function getGemini() {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -18,44 +23,18 @@ const analyzeSchema = z.object({
   type: z.enum(['summary', 'sentiment', 'category', 'keywords', 'improve']),
 });
 
-const CORS_ORIGINS = ['http://localhost:8080', 'http://localhost:5173', 'http://localhost:3000', 'https://frontend-lovable.vercel.app'];
-
-function getCORSOrigin(origin?: string): string {
-  if (!origin) return CORS_ORIGINS[0];
-  return CORS_ORIGINS.includes(origin) ? origin : CORS_ORIGINS[0];
+export async function OPTIONS() {
+  return new Response(null, { status: 204, headers: corsHeaders });
 }
 
-export async function OPTIONS(request: NextRequest) {
-  const origin = request.headers.get('origin') || '';
-  const allowedOrigin = CORS_ORIGINS.includes(origin) ? origin : CORS_ORIGINS[0];
-  
-  return new NextResponse(null, {
-    status: 204,
-    headers: {
-      'Access-Control-Allow-Origin': allowedOrigin,
-      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      'Access-Control-Max-Age': '86400',
-    },
+export async function GET() {
+  return new Response(JSON.stringify({ ok: true, route: 'analyze', method: 'GET' }), {
+    status: 200,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 }
 
-export async function GET(request: NextRequest) {
-  const origin = request.headers.get('origin') || 'http://localhost:8080';
-  return new NextResponse(
-    JSON.stringify({ ok: true, route: 'analyze', method: 'GET' }),
-    {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': getCORSOrigin(origin),
-      },
-    }
-  );
-}
-
 export async function POST(request: NextRequest) {
-  const origin = request.headers.get('origin') || 'http://localhost:8080';
   try {
     // ============== RATE LIMITING ==============
     const identifier = getRateLimitIdentifier(request);
@@ -65,14 +44,16 @@ export async function POST(request: NextRequest) {
     });
 
     if (!rateLimit.allowed) {
-      return withSecureCors(
-        {
+      return new Response(
+        JSON.stringify({
           error: 'Too many requests',
           message: 'Rate limit exceeded. Please try again later.',
           retryAfter: new Date(rateLimit.resetTime).toISOString(),
-        },
-        { status: 429 },
-        getCORSOrigin(origin)
+        }),
+        {
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
       );
     }
 
@@ -107,32 +88,38 @@ export async function POST(request: NextRequest) {
     const completion = await getGemini().generateContent(`${systemPrompt}\n\n${prompt}`);
     const result = completion.response.text();
 
-    return withSecureCors(
-      { success: true, result, type },
+    return new Response(
+      JSON.stringify({ success: true, result, type }),
       {
+        status: 200,
         headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
           'X-RateLimit-Limit': '20',
           'X-RateLimit-Remaining': rateLimit.remaining.toString(),
           'X-RateLimit-Reset': new Date(rateLimit.resetTime).toISOString(),
         },
-      },
-      getCORSOrigin(origin)
+      }
     );
   } catch (error) {
     console.error('Error en análisis de IA:', error);
 
     if (error instanceof z.ZodError) {
-      return withSecureCors(
-        { success: false, error: 'Datos de entrada inválidos', details: error.issues },
-        { status: 400 },
-        getCORSOrigin(origin)
+      return new Response(
+        JSON.stringify({ success: false, error: 'Datos de entrada inválidos', details: error.issues }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
       );
     }
 
-    return withSecureCors(
-      { success: false, error: 'Error al procesar la solicitud de IA' },
-      { status: 500 },
-      getCORSOrigin(origin)
+    return new Response(
+      JSON.stringify({ success: false, error: 'Error al procesar la solicitud de IA' }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
     );
   }
 }
