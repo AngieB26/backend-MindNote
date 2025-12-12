@@ -6,7 +6,8 @@ import { prisma } from '../../../lib/prisma';
 const CORS_ORIGINS = ['http://localhost:8080', 'http://localhost:5173', 'http://localhost:3000', 'https://frontend-lovable.vercel.app'];
 
 function getCORSOrigin(origin?: string): string {
-  return origin && CORS_ORIGINS.includes(origin) ? origin : 'http://localhost:8080';
+  if (!origin) return CORS_ORIGINS[0];
+  return CORS_ORIGINS.includes(origin) ? origin : CORS_ORIGINS[0];
 }
 
 function withCors(json: Record<string, unknown>, init?: ResponseInit, origin?: string) {
