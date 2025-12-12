@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { z } from 'zod';
-import { corsResponse, corsOptions } from '@/app/lib/cors';
+import { corsResponse, corsOptions } from '@/lib/cors';
 
 function getGemini() {
   const apiKey = process.env.GEMINI_API_KEY;

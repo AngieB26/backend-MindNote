@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { corsResponse, corsOptions } from '@/app/lib/cors';
+import { corsResponse, corsOptions } from '@/lib/cors';
 
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get('origin');
