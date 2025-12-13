@@ -39,6 +39,7 @@ model Note {
   content    String?  @db.Text
   userId     String?
   categoryId String
+  isPinned   Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   
