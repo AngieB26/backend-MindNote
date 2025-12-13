@@ -73,8 +73,8 @@ export async function POST(req: Request) {
       finalCategoryId = await getOrCreateDefaultCategory();
     }
 
-    // userId es opcional, si no lo proporciona generar uno
-    const finalUserId = userId || "anonymous-" + Date.now();
+    // userId es opcional - si no se proporciona, dejar como null
+    const finalUserId = userId || null;
 
     console.log("Creating note with:", {
       title,
@@ -88,7 +88,7 @@ export async function POST(req: Request) {
         title,
         content,
         categoryId: finalCategoryId,
-        userId: finalUserId,
+        ...(finalUserId && { userId: finalUserId }),
       },
       include: { category: true },
     });
