@@ -58,7 +58,12 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { title, content, categoryId, userId, isPinned } = body;
 
-    console.log("📝 POST /api/notes", { title, content, categoryId, userId, isPinned });
+    console.log("📝 POST /api/notes - RECEIVED BODY:", JSON.stringify(body, null, 2));
+    console.log("   - title:", title);
+    console.log("   - content length:", content?.length || 0);
+    console.log("   - categoryId:", categoryId, "(type:", typeof categoryId, ")");
+    console.log("   - userId:", userId);
+    console.log("   - isPinned:", isPinned);
 
     if (!title || !content) {
       return NextResponse.json(
