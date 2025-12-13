@@ -58,14 +58,26 @@ async function createNote(title, content, categoryId, userId) {
   throw new Error('Note creation failed');
 }
 
-// Uso:
+// Uso - Opción 1: Sin usuario (anónimo) ni categoría
+const note = await createNote('Mi nota', 'Contenido');
+// → userId se genera automáticamente como "anonymous-{timestamp}"
+// → categoryId se asigna a "General" automáticamente
+
+// Uso - Opción 2: Solo con categoría
 const note = await createNote(
-  'Mi primer nota',
-  'Contenido de la nota',
-  'cmj3k8pmz0001jgbuquphop4q', // categoryId
-  'cmj3k8oyp0000jgbubth55gak'  // userId
+  'Mi nota',
+  'Contenido',
+  'cmj3k8pmz0001jgbuquphop4q' // categoryId
 );
-console.log(note.id);
+// → userId se genera automáticamente
+
+// Uso - Opción 3: Con usuario y categoría
+const note = await createNote(
+  'Mi nota',
+  'Contenido',
+  'cmj3k8pmz0001jgbuquphop4q', // categoryId (opcional)
+  'cmj3k8oyp0000jgbubth55gak'  // userId (opcional)
+);
 ```
 
 ### Obtener todas las notas
@@ -113,35 +125,30 @@ console.log(summary);
 
 ```javascript
 async function completeFlow() {
-  // 1. Obtener usuario del localStorage (debe estar guardado del frontend)
-  const userId = localStorage.getItem('userId');
+  // Opción 1: Crear nota SIN usuario ni categoría (recomendado para demostración)
+  const noteData = await createNote(
+    'Mi nota de prueba',
+    'Este es un contenido largo que será resumido por IA'
+  );
   
-  // 2. Crear o obtener categoría
-  let categories = await getCategories();
-  let categoryId = categories[0]?.id;
-  
-  if (!categoryId) {
-    categoryId = await createCategory('General', '#3B82F6', '📝');
-  }
-  
-  // 3. Crear nota
+  // Opción 2: Crear nota CON categoría específica
+  const categories = await getCategories();
   const noteData = await createNote(
     'Mi nota de prueba',
     'Este es un contenido largo que será resumido por IA',
-    categoryId,
-    userId
+    categories[0]?.id
   );
   
-  // 4. Resumir nota con IA
+  // Resumir nota con IA
   const summary = await summarizeNote(noteData.content);
   console.log('Resumen:', summary);
   
-  return { userId, categoryId, noteId: noteData.id, summary };
+  return { noteId: noteData.id, userId: noteData.userId, summary };
 }
 
 // Ejecutar
 completeFlow().then(result => {
-  console.log('✅ Flujo completado:', result);
+  console.log('✅ Nota creada y resumida:', result);
 });
 ```
 

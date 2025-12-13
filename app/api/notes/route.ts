@@ -67,19 +67,19 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!categoryId) {
-      return NextResponse.json(
-        { error: "categoryId is required" },
-        { status: 400, headers: CORS_HEADERS }
-      );
+    // categoryId es opcional, si no lo proporciona usar uno por defecto
+    let finalCategoryId = categoryId;
+    if (!finalCategoryId) {
+      finalCategoryId = await getOrCreateDefaultCategory();
     }
 
+    // userId es opcional, si no lo proporciona generar uno
     const finalUserId = userId || "anonymous-" + Date.now();
 
     console.log("Creating note with:", {
       title,
       content,
-      categoryId,
+      categoryId: finalCategoryId,
       userId: finalUserId,
     });
 
@@ -87,7 +87,7 @@ export async function POST(req: Request) {
       data: {
         title,
         content,
-        categoryId,
+        categoryId: finalCategoryId,
         userId: finalUserId,
       },
       include: { category: true },
