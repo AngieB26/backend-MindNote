@@ -3,49 +3,11 @@
 ## Base URL
 ```
 https://backend-nextjs-one.vercel.app
-
----
-
-## 1️⃣ Autenticación / Registro de Usuario
-
-### Registrar nuevo usuario
-```javascript
-async function signup(email, name, password) {
-  const response = await fetch('https://backend-nextjs-one.vercel.app/api/auth/signup', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, name, password })
-  });
-  
-  const { ok, data, isNew } = await response.json();
-  if (ok) {
-    localStorage.setItem('userId', data.id);
-    return { userId: data.id, isNew, email: data.email };
-  }
-  throw new Error('Signup failed');
-}
-
-// Uso:
-const user = await signup('user@example.com', 'John', 'pass123');
-console.log(user.userId); // Guardar para futuras operaciones
-```
-
-### Obtener usuario demo (sin registro)
-```javascript
-async function getDemoUser() {
-  const response = await fetch('https://backend-nextjs-one.vercel.app/api/auth/signup');
-  const { data } = await response.json();
-  localStorage.setItem('userId', data.id);
-  return data.id;
-}
-
-// Uso:
-const userId = await getDemoUser();
 ```
 
 ---
 
-## 2️⃣ Gestionar Categorías
+## 1️⃣ Gestionar Categorías
 
 ### Crear categoría
 ```javascript
@@ -80,7 +42,7 @@ categories.forEach(cat => console.log(cat.name, cat.icon));
 
 ---
 
-## 3️⃣ Gestionar Notas
+## 2️⃣ Gestionar Notas
 
 ### Crear nota
 ```javascript
@@ -123,7 +85,7 @@ notes.forEach(note => {
 
 ---
 
-## 4️⃣ Resumir Nota con IA (Gemini)
+## 3️⃣ Resumir Nota con IA (Gemini)
 
 ### Generar resumen automático
 ```javascript
@@ -147,18 +109,12 @@ console.log(summary);
 
 ---
 
-## 📋 Flujo Completo: Crear Usuario → Nota → Resumir
+## 📋 Flujo Completo: Nota → Resumir
 
 ```javascript
 async function completeFlow() {
-  // 1. Registrar o obtener usuario
-  let userId;
-  try {
-    const user = await signup('user@example.com', 'User', 'pass123');
-    userId = user.userId;
-  } catch {
-    userId = await getDemoUser();
-  }
+  // 1. Obtener usuario del localStorage (debe estar guardado del frontend)
+  const userId = localStorage.getItem('userId');
   
   // 2. Crear o obtener categoría
   let categories = await getCategories();
@@ -234,12 +190,13 @@ localStorage.setItem('defaultCategoryId', '...');
 
 ## 📞 Endpoints Resumen
 
-| Endpoint | Método | Autenticación |
-|----------|--------|---------------|
-| `/api/auth/signup` | POST, GET | No requerida |
-| `/api/categories` | GET, POST | No requerida |
-| `/api/notes` | GET, POST | `userId` en POST |
-| `/api/ai/analyze` | POST | No requerida |
+| Endpoint | Método | Descripción |
+|----------|--------|-----------|
+| `/api/categories` | GET | Obtener todas las categorías |
+| `/api/categories` | POST | Crear nueva categoría |
+| `/api/notes` | GET | Obtener todas las notas |
+| `/api/notes` | POST | Crear nueva nota (requiere userId y categoryId) |
+| `/api/ai/analyze` | POST | Resumir contenido con IA |
 
 ---
 
@@ -248,8 +205,9 @@ localStorage.setItem('defaultCategoryId', '...');
 **Error: "categoryId is required"**
 - Asegúrate de crear una categoría primero o obtener una existente
 
-**Error: "Foreign key constraint violated"**
-- El `userId` no existe en la BD. Usa `/api/auth/signup` GET para obtener un usuario válido
+**Error: "userId is required"**
+- El `userId` debe estar guardado en `localStorage` del frontend
+- Usa el endpoint `/api/auth/signup` (GET) para obtener un usuario
 
 **Error: CORS error**
 - Verifica que el frontend está en `https://frontend-lovable.vercel.app`
