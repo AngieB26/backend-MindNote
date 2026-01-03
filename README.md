@@ -58,13 +58,13 @@ npm run dev
 
 ## 📡 Uso desde Frontend
 
-**Tu frontend debe estar en:** `http://localhost:8080`
+**Tu frontend debe estar en:** `https://backend-mind-note.vercel.app/`
 
 ### Ejemplo de Request
 
 ```javascript
 // Login
-const response = await fetch('http://localhost:3000/api/auth/login', {
+const response = await fetch('https://backend-mind-note.vercel.app/api/auth/login', {
   method: 'POST',
   credentials: 'include', // ⚠️ IMPORTANTE: para cookies
   headers: {
@@ -80,7 +80,7 @@ const data = await response.json();
 localStorage.setItem('csrfToken', data.csrfToken);
 
 // Usar endpoints de IA
-await fetch('http://localhost:3000/api/ai/analyze', {
+await fetch('https://backend-mind-note.vercel.app/api/ai/analyze', {
   method: 'POST',
   credentials: 'include',
   headers: {
@@ -110,12 +110,12 @@ await fetch('http://localhost:3000/api/ai/analyze', {
 
 ## 🛡️ CORS
 
-Configurado para: `http://localhost:8080`
+Configurado para: `https://backend-mind-note.vercel.app/`
 
 ## 🌍 URLs
 
-- **Backend API**: http://localhost:3000
-- **Tu Frontend**: http://localhost:8080
+- **Backend API**: https://backend-mind-note.vercel.app/
+- **Tu Frontend**: https://backend-mind-note.vercel.app/
 
 ## ⚠️ Importante
 
