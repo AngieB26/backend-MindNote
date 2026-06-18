@@ -10,7 +10,7 @@ Este es un **backend API puro** construido con Next.js 16 (App Router). **NO inc
 
 - **Next.js 16.0.10** - Framework para API Routes
 - **Prisma 5.22.0** - ORM para PostgreSQL
-- **OpenAI GPT-4o-mini** - Inteligencia Artificial
+- **Gemini** - Inteligencia Artificial
 - **bcryptjs** - Encriptación de contraseñas
 - **Zod** - Validación de esquemas
 - **TypeScript** - Tipado estático
